@@ -70,6 +70,10 @@
         this.resultsCount = 0;
         //results to send to client
         this.downloadResults = [];
+        //keep track of the least recently used address/port
+        this.runStepper = 0;
+        //track the number of currently active download tests
+        this.numActiveTests = 0;
     }
 
     /**
@@ -119,10 +123,12 @@
             return;
         }
 
+        this.numActiveTests--;
+
         //store results
         this._storeResults(result);
         this.start();
-        };
+    };
 
 
 
@@ -138,24 +144,33 @@
 
     };
 
+
+    
+
     /**
      * Start the test
      */
     downloadHttpConcurrentProgress.prototype.start = function () {
-      if (!this._running) {
+        if (!this._running) {
             return;
-      }
+        }
 
-            for (var g = 1; g <= this.concurrentRuns; g++) {
-                this._testIndex++;
-                var request = new window.xmlHttpRequest('GET', this.urls[g]+ this.size +  '&r=' + Math.random(), this.timeout, this.onTestComplete.bind(this), this.onTestProgress.bind(this),
-                    this.onTestAbort.bind(this), this.onTestTimeout.bind(this), this.onTestError.bind(this),this.progressIntervalDownload);
-                this._activeTests.push({
-                    xhr: request,
-                    testRun: this._testIndex
-                });
-                request.start(0, this._testIndex);
+        while(this.numActiveTests < this.concurrentRuns){
+            this._testIndex++;
+            var request = new window.xmlHttpRequest('GET', this.urls[this.runStepper]+ this.size +  '&r=' + Math.random(), this.timeout, this.onTestComplete.bind(this), this.onTestProgress.bind(this),
+                                                     this.onTestAbort.bind(this), this.onTestTimeout.bind(this), this.onTestError.bind(this),this.progressIntervalDownload);
+            this.runStepper++;
+            if(this.runStepper >= 16){
+                this.runStepper = 0;
             }
+            this._activeTests.push({
+                xhr: request,
+                testRun: this._testIndex
+            });
+
+            request.start(0, this._testIndex);
+            this.numActiveTests++;
+        }
 
     };
 
